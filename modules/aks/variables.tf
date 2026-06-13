@@ -6,7 +6,7 @@ variable "aks_clusters" {
     location            = string
     dns_prefix          = string
     kubernetes_version  = optional(string)
-    
+
     default_node_pool = object({
       name       = string
       node_count = number
@@ -27,7 +27,7 @@ variable "aks_clusters" {
     })), {})
 
     network_profile = optional(object({
-      network_plugin = optional(string, "azure")
+      network_plugin    = optional(string, "azure")
       load_balancer_sku = optional(string, "standard")
     }))
   }))
