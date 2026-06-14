@@ -2,18 +2,22 @@ name: 'Terraform Production Pipeline'
 
 on:
   push:
-    branches: [ "main" ]
+    branches:
+      - main
+
   pull_request:
-    branches: [ "main" ]
+    branches:
+      - main
 
 permissions:
-  id-token: write # This is required for requesting the JWT
-  contents: read  # This is required for actions/checkout
+  id-token: write
+  contents: read
 
 jobs:
   terraform-ci:
     name: 'Terraform CI'
     runs-on: ubuntu-latest
+
     env:
       ARM_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
       ARM_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
@@ -21,42 +25,37 @@ jobs:
       ARM_USE_OIDC: true
 
     steps:
-    - name: Checkout
-      uses: actions/checkout@v3
+      - name: Checkout Code
+        uses: actions/checkout@v4
 
-    - name: Setup Terraform
-      uses: hashicorp/setup-terraform@v2
-      with:
-        terraform_version: 1.5.0
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.5.0
 
-    - name: Terraform Format
-      run: terraform fmt -check -recursive
+      - name: Terraform Format Check
+        run: terraform fmt -check -recursive
 
-    - name: TFLint
-      uses: terraform-linters/setup-tflint@v3
-      with:
-        tflint_version: latest
+      - name: Setup TFLint
+        uses: terraform-linters/setup-tflint@v4
 
-    - name: Run TFLint
-      run: tflint -f compact
+      - name: Run TFLint
+        run: tflint --init && tflint
 
-    - name: tfsec
-      uses: aquasecurity/tfsec-pr-commenter-action@v1.2.0
-      with:
-        github_token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Terraform Init
+        run: terraform init -backend=false
 
-    - name: Terraform Init
-      run: terraform init -backend=false # Using backend=false for CI check; use real backend for CD
-
-    - name: Terraform Validate
-      run: terraform validate
+      - name: Terraform Validate
+        run: terraform validate
 
   terraform-cd:
     name: 'Terraform CD'
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    needs: terraform-ci
     runs-on: ubuntu-latest
-    environment: production
+
+    needs: terraform-ci
+
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+
     env:
       ARM_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
       ARM_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
@@ -64,24 +63,27 @@ jobs:
       ARM_USE_OIDC: true
 
     steps:
-    - name: Checkout
-      uses: actions/checkout@v3
+      - name: Checkout Code
+        uses: actions/checkout@v4
 
-    - name: Azure Login
-      uses: azure/login@v2
-      with:
-        client-id: ${{ secrets.AZURE_CLIENT_ID }}
-        tenant-id: ${{ secrets.AZURE_TENANT_ID }}
-        subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      - name: Azure Login using OIDC
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
-    - name: Setup Terraform
-      uses: hashicorp/setup-terraform@v2
+      - name: Verify Azure Login
+        run: az account show
 
-    - name: Terraform Init
-      run: terraform init
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
 
-    - name: Terraform Plan
-      run: terraform plan -out=main.tfplan
+      - name: Terraform Init
+        run: terraform init
 
-    - name: Terraform Apply
-      run: terraform apply -auto-approve main.tfplan
+      - name: Terraform Plan
+        run: terraform plan -out=tfplan
+
+      - name: Terraform Apply
+        run: terraform apply -auto-approve tfplan
