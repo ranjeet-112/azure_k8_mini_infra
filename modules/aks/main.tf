@@ -7,6 +7,9 @@ resource "azurerm_kubernetes_cluster" "aks" {
   dns_prefix          = each.value.dns_prefix
   kubernetes_version  = each.value.kubernetes_version
 
+  oidc_issuer_enabled       = each.value.oidc_issuer_enabled
+  workload_identity_enabled = each.value.workload_identity_enabled
+
   default_node_pool {
     name       = each.value.default_node_pool.name
     node_count = each.value.default_node_pool.node_count
@@ -66,6 +69,10 @@ resource "azurerm_kubernetes_cluster_node_pool" "extra" {
 
 output "aks_ids" {
   value = { for k, v in azurerm_kubernetes_cluster.aks : k => v.id }
+}
+
+output "oidc_issuer_urls" {
+  value = { for k, v in azurerm_kubernetes_cluster.aks : k => v.oidc_issuer_url }
 }
 
 output "kube_configs" {

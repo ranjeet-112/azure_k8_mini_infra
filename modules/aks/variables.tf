@@ -20,6 +20,9 @@ variable "aks_clusters" {
       type = string
     }), { type = "SystemAssigned" })
 
+    oidc_issuer_enabled       = optional(bool, false)
+    workload_identity_enabled = optional(bool, false)
+
     extra_node_pools = optional(map(object({
       vm_size    = string
       node_count = number

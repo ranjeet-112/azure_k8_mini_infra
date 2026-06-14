@@ -18,7 +18,7 @@ module "acr" {
   # Only pass registries where deploy_acr is true
   registries = {
     for env_key, env in var.environments : env_key => {
-      name                = "acr${replace(env_key, "-", "")}${formatdate("HHmm", timestamp())}" # Logic for unique name
+      name                = "acrdevk8s0614" # More unique stable name
       resource_group_name = module.resource_groups.resource_group_names[env_key]
       location            = module.resource_groups.resource_group_locations[env_key]
       sku                 = env.acr_sku
@@ -41,6 +41,9 @@ module "aks" {
         location            = module.resource_groups.resource_group_locations[env_key]
         dns_prefix          = cluster.dns_prefix
         kubernetes_version  = cluster.kubernetes_version
+
+        oidc_issuer_enabled       = cluster.oidc_issuer_enabled
+        workload_identity_enabled = cluster.workload_identity_enabled
 
         default_node_pool = {
           name       = "default"
